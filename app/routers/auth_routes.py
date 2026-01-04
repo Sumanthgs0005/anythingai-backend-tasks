@@ -22,7 +22,7 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
-    hashed_pw = get_password_hash(user_in.password)
+    hashed_pw = get_password_hash(user_in.password[:72])
     user = models.User(
         email=user_in.email,
         hashed_password=hashed_pw,
@@ -31,8 +31,12 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
-
+access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id, "is_admin": user.is_admin},
+        expires_delta=access_token_expires,
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=schemas.Token)
 def login(user_in: schemas.UserLogin, db: Session = Depends(get_db)):
